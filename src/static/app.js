@@ -24,7 +24,7 @@ document.addEventListener("DOMContentLoaded", () => {
           <h4>${name}</h4>
           <p>${details.description}</p>
           <p><strong>Schedule:</strong> ${details.schedule}</p>
-          <p><strong>Availability:</strong> ${spotsLeft} spots left</p>
+          <p><strong>Availability:</strong> <span class="availability">${spotsLeft}</span> spots left</p>
         `;
 
         // Add participants section
@@ -52,7 +52,62 @@ document.addEventListener("DOMContentLoaded", () => {
             badge.className = "participant-badge";
             badge.textContent = email; // safe via textContent
 
+            // Delete button
+            const deleteBtn = document.createElement("button");
+            deleteBtn.className = "delete-btn";
+            deleteBtn.setAttribute("aria-label", `Remove ${email}`);
+            // Tooltip shown on hover
+            deleteBtn.title = `Unregister ${email} from ${name}`;
+            deleteBtn.textContent = "\u{1F5D1}"; // trash can emoji
+
+            deleteBtn.addEventListener("click", async () => {
+              try {
+                const resp = await fetch(
+                  `/activities/${encodeURIComponent(name)}/participants?email=${encodeURIComponent(email)}`,
+                  { method: "DELETE" }
+                );
+
+                const data = await resp.json();
+
+                if (resp.ok) {
+                  // Remove from DOM
+                  li.remove();
+
+                  // If no participants left, show placeholder
+                  const remaining = participantsList.querySelectorAll('.participant-item').length;
+                  if (remaining === 0) {
+                    const placeholder = document.createElement('li');
+                    placeholder.className = 'no-participants';
+                    placeholder.textContent = 'No participants yet.';
+                    participantsList.appendChild(placeholder);
+                  }
+
+                  // Update availability count
+                  const availability = activityCard.querySelector('.availability');
+                  if (availability) {
+                    const current = parseInt(availability.textContent, 10) || 0;
+                    availability.textContent = current + 1;
+                  }
+
+                  messageDiv.textContent = data.message;
+                  messageDiv.className = 'success';
+                } else {
+                  messageDiv.textContent = data.detail || 'Failed to remove participant';
+                  messageDiv.className = 'error';
+                }
+
+                messageDiv.classList.remove('hidden');
+                setTimeout(() => messageDiv.classList.add('hidden'), 5000);
+              } catch (err) {
+                messageDiv.textContent = 'Failed to remove participant. Please try again.';
+                messageDiv.className = 'error';
+                messageDiv.classList.remove('hidden');
+                console.error('Error removing participant:', err);
+              }
+            });
+
             li.appendChild(badge);
+            li.appendChild(deleteBtn);
             participantsList.appendChild(li);
           });
         }
